@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { createRequire } from 'node:module';
 import * as os from 'os';
 import * as path from 'path';
 import {
@@ -16,6 +17,16 @@ import type {
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import { ClaudeAccountEmailWidget } from '../ClaudeAccountEmail';
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// os.homedir directly. Re-exporting a shallow copy gives vi.spyOn a
+// plain, writable object to patch while keeping the real implementations.
+// The default export is included because some widgets default-import os,
+// and Vite's interop needs it on the mock even when this file doesn't.
+vi.mock('os', () => {
+    const copy = { ...(createRequire(import.meta.url)('os') as typeof os) };
+    return { __esModule: true, default: copy, ...copy };
+});
 
 const ORIGINAL_HOME = process.env.HOME;
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;

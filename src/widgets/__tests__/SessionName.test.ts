@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { createRequire } from 'node:module';
 import {
     afterEach,
     beforeEach,
@@ -14,6 +15,18 @@ import type {
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import { SessionNameWidget } from '../SessionName';
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// fs.readFileSync directly. Re-exporting a shallow copy gives vi.spyOn a
+// plain, writable object to patch while keeping the real implementations.
+// This stays async: a sync createRequire factory here hits a Vitest
+// mock-init-order bug specific to fs (and child_process) when the module
+// under test also imports the mocked module itself.
+vi.mock('fs', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof fs>('fs')) };
+    return { ...(createRequire(import.meta.url)('fs') as typeof fs) };
+});
 
 let mockReadFileSync: { mockImplementation: (fn: () => string | never) => void };
 

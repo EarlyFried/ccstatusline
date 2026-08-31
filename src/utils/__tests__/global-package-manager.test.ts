@@ -1,5 +1,6 @@
 import * as childProcess from 'child_process';
 import * as fs from 'fs';
+import { createRequire } from 'node:module';
 import {
     afterEach,
     describe,
@@ -13,6 +14,29 @@ import {
     inspectGlobalPackageInstallations,
     runGlobalPackageUninstall
 } from '../global-package-manager';
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// childProcess.execFileSync directly. Re-exporting a shallow copy gives
+// vi.spyOn a plain, writable object to patch while keeping the real
+// implementations. child_process specifically deadlocks under real Vitest
+// when the copy is made synchronously via createRequire (a hoisting/init-
+// order quirk unique to this module), so prefer the async vi.importActual
+// where it exists and fall back to createRequire under bun:test's vi shim,
+// which lacks it.
+vi.mock('child_process', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof childProcess>('child_process')) };
+    return { ...(createRequire(import.meta.url)('child_process') as typeof childProcess) };
+});
+
+// Same frozen-namespace issue as child_process above. This copy must stay
+// async too: mixing a sync createRequire-based factory with the async one
+// above breaks Vitest's mock initialization order for the sync one.
+vi.mock('fs', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof fs>('fs')) };
+    return { ...(createRequire(import.meta.url)('fs') as typeof fs) };
+});
 
 function mockExecFileSync(responses: Record<string, string>) {
     return vi.spyOn(childProcess, 'execFileSync').mockImplementation((command, args) => {

@@ -1,5 +1,7 @@
+import type * as childProcess from 'child_process';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
+import { createRequire } from 'node:module';
 import * as path from 'path';
 import type { Mock } from 'vitest';
 import {
@@ -17,11 +19,28 @@ import {
     parseMacKeychainCredentialCandidates
 } from '../usage-fetch';
 
-vi.mock('child_process', () => ({
-    execSync: vi.fn(),
-    execFileSync: vi.fn(),
-    spawnSync: vi.fn()
-}));
+// Widget registry transitively needs the real child_process API (e.g.
+// spawn), so the mock spreads the real module rather than a hand-picked
+// literal stub. Stays async: a sync createRequire factory here hits a
+// Vitest mock-init-order bug specific to child_process (and fs) when
+// paired with another mock in the same file.
+vi.mock('child_process', async () => {
+    const actual = typeof vi.importActual === 'function'
+        ? await vi.importActual<typeof childProcess>('child_process')
+        : createRequire(import.meta.url)('child_process') as typeof childProcess;
+    return { ...actual, execSync: vi.fn(), execFileSync: vi.fn(), spawnSync: vi.fn() };
+});
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// fs.readFileSync directly. Re-exporting a shallow copy gives vi.spyOn a
+// plain, writable object to patch while keeping the real implementations.
+// This stays async: combined with the child_process mock above, a sync
+// factory here hits a Vitest mock-init-order bug specific to this pairing.
+vi.mock('fs', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof fs>('fs')) };
+    return { ...(createRequire(import.meta.url)('fs') as typeof fs) };
+});
 
 const CREDENTIALS_FILE = path.join('/fake/claude', '.credentials.json');
 const mockedExecFileSync = execFileSync as unknown as Mock;

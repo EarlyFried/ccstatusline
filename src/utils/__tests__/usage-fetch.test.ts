@@ -401,6 +401,8 @@ describe('fetchUsageData error handling', () => {
         }
     });
 
+    // Spawns 7+ real subprocesses sequentially; the default 5000ms test
+    // timeout is too tight for this under full-suite parallel load.
     it('preserves root errors within a process and keeps existing proxy and cache behavior', () => {
         const harness = createProbeHarness();
 
@@ -571,7 +573,7 @@ describe('fetchUsageData error handling', () => {
         } finally {
             harness.cleanup();
         }
-    });
+    }, 20000);
 
     it('treats null API per-model buckets as zero usage', () => {
         const harness = createProbeHarness();

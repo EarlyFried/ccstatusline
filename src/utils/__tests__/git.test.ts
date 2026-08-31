@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'node:fs';
+import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
@@ -29,6 +30,16 @@ vi.mock('child_process', () => ({
     execFileSync: vi.fn(),
     spawnSync: vi.fn()
 }));
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// os.homedir directly. Re-exporting a shallow copy gives vi.spyOn a
+// plain, writable object to patch while keeping the real implementations.
+// The default export is included because some widgets default-import os,
+// and Vite's interop needs it on the mock even when this file doesn't.
+vi.mock('node:os', () => {
+    const copy = { ...(createRequire(import.meta.url)('node:os') as typeof os) };
+    return { __esModule: true, default: copy, ...copy };
+});
 
 const mockExecFileSync = execFileSync as unknown as {
     mock: { calls: unknown[][] };

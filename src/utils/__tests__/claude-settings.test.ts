@@ -1,5 +1,6 @@
 import * as childProcess from 'child_process';
 import * as fs from 'fs';
+import { createRequire } from 'node:module';
 import * as os from 'os';
 import * as path from 'path';
 import {
@@ -34,6 +35,20 @@ import {
     uninstallStatusLine
 } from '../claude-settings';
 import * as config from '../config';
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// childProcess.execSync directly. Re-exporting a shallow copy gives
+// vi.spyOn a plain, writable object to patch while keeping the real
+// implementations. child_process specifically deadlocks under real Vitest
+// when the copy is made synchronously via createRequire (a hoisting/init-
+// order quirk unique to this module), so prefer the async vi.importActual
+// where it exists and fall back to createRequire under bun:test's vi shim,
+// which lacks it.
+vi.mock('child_process', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof childProcess>('child_process')) };
+    return { ...(createRequire(import.meta.url)('child_process') as typeof childProcess) };
+});
 
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 let testClaudeConfigDir = '';

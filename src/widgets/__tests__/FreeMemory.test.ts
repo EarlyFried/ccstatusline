@@ -1,4 +1,5 @@
 import * as childProcess from 'child_process';
+import { createRequire } from 'node:module';
 import os from 'os';
 import {
     afterEach,
@@ -15,6 +16,32 @@ import type {
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import { FreeMemoryWidget } from '../FreeMemory';
+
+// Real ESM module namespaces are frozen, so vi.spyOn can't redefine
+// childProcess.execSync/os.platform etc directly. Re-exporting a shallow
+// copy gives vi.spyOn a plain, writable object to patch while keeping the
+// real implementations. child_process specifically deadlocks under real
+// Vitest when the copy is made synchronously via createRequire (a hoisting
+// /init-order quirk unique to this module), so prefer the async
+// vi.importActual where it exists and fall back to createRequire under
+// bun:test's vi shim, which lacks it. Both mocks stay async: mixing a sync
+// and an async factory in the same file breaks Vitest's mock init order.
+vi.mock('child_process', async () => {
+    if (typeof vi.importActual === 'function')
+        return { ...(await vi.importActual<typeof childProcess>('child_process')) };
+    return { ...(createRequire(import.meta.url)('child_process') as typeof childProcess) };
+});
+
+// os is a default import here, so the copy also needs __esModule/default
+// so Vite's interop binds the local `os` name to this same writable object
+// instead of re-wrapping it in a fresh frozen namespace.
+vi.mock('os', async () => {
+    const actual = typeof vi.importActual === 'function'
+        ? await vi.importActual<typeof os>('os')
+        : createRequire(import.meta.url)('os') as typeof os;
+    const copy = { ...actual };
+    return { __esModule: true, default: copy, ...copy };
+});
 
 describe('FreeMemoryWidget', () => {
     const widget = new FreeMemoryWidget();

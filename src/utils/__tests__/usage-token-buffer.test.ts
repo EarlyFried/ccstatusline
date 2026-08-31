@@ -12,11 +12,16 @@ import {
 
 import { getUsageToken } from '../usage-fetch';
 
-vi.mock('child_process', () => ({
-    execSync: vi.fn(),
-    execFileSync: vi.fn(),
-    spawnSync: vi.fn()
-}));
+// Widget registry transitively needs the real child_process API (e.g.
+// spawn), so the mock spreads the real module rather than a hand-picked
+// literal stub. Stays async: a sync createRequire factory here hits a
+// Vitest mock-init-order bug specific to child_process.
+vi.mock('child_process', async () => {
+    const actual = typeof vi.importActual === 'function'
+        ? await vi.importActual<typeof childProcess>('child_process')
+        : createRequire(import.meta.url)('child_process') as typeof childProcess;
+    return { ...actual, execSync: vi.fn(), execFileSync: vi.fn(), spawnSync: vi.fn() };
+});
 
 const require = createRequire(import.meta.url);
 const { execFileSync: realExecFileSync } = require('node:child_process') as { execFileSync: typeof childProcess.execFileSync };
