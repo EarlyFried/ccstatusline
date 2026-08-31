@@ -15,6 +15,8 @@ export interface UsageData {
     weeklySonnetResetAt?: string; // seven_day_sonnet.resets_at
     weeklyOpusUsage?: number;     // seven_day_opus.utilization (percentage)
     weeklyOpusResetAt?: string;   // seven_day_opus.resets_at
+    spendLimitUsage?: number;    // spend_limit.used_percentage (percentage)
+    spendLimitResetAt?: string;  // spend_limit.resets_at
     fableUsage?: number;
     fableResetAt?: string;
     extraUsageEnabled?: boolean;

@@ -74,7 +74,8 @@ describe('StatusJSONSchema numeric coercion', () => {
         const result = StatusJSONSchema.safeParse({
             rate_limits: {
                 five_hour: { used_percentage: 42, resets_at: 1774020000 },
-                seven_day: { used_percentage: 15, resets_at: 1774540000 }
+                seven_day: { used_percentage: 15, resets_at: 1774540000 },
+                spend_limit: { used_percentage: 5, resets_at: 1788134400 }
             }
         });
 
@@ -87,6 +88,8 @@ describe('StatusJSONSchema numeric coercion', () => {
         expect(result.data.rate_limits?.five_hour?.resets_at).toBe(1774020000);
         expect(result.data.rate_limits?.seven_day?.used_percentage).toBe(15);
         expect(result.data.rate_limits?.seven_day?.resets_at).toBe(1774540000);
+        expect(result.data.rate_limits?.spend_limit?.used_percentage).toBe(5);
+        expect(result.data.rate_limits?.spend_limit?.resets_at).toBe(1788134400);
     });
 
     it('accepts null rate_limits', () => {
@@ -110,5 +113,17 @@ describe('StatusJSONSchema numeric coercion', () => {
 
         expect(result.data.rate_limits?.five_hour?.used_percentage).toBe(42);
         expect(result.data.rate_limits?.five_hour?.resets_at).toBe(1774020000);
+    });
+
+    it('coerces rate_limits spend_limit string numbers', () => {
+        const result = StatusJSONSchema.safeParse({ rate_limits: { spend_limit: { used_percentage: '5', resets_at: '1788134400' } } });
+
+        expect(result.success).toBe(true);
+        if (!result.success) {
+            return;
+        }
+
+        expect(result.data.rate_limits?.spend_limit?.used_percentage).toBe(5);
+        expect(result.data.rate_limits?.spend_limit?.resets_at).toBe(1788134400);
     });
 });

@@ -18,6 +18,7 @@ import {
 const BASE_USAGE_WIDGET_TYPES = [
     'session-usage',
     'weekly-usage',
+    'spend-limit-usage',
     'block-timer',
     'reset-timer',
     'weekly-reset-timer',
@@ -36,6 +37,8 @@ const USAGE_DATA_FIELDS: UsageDataField[] = [
     'sessionResetAt',
     'weeklyUsage',
     'weeklyResetAt',
+    'spendLimitUsage',
+    'spendLimitResetAt',
     ...WEEKLY_MODEL_USAGE_BUCKETS.flatMap(bucket => [bucket.usageField, bucket.resetField]),
     'extraUsageEnabled',
     'extraUsageLimit',
@@ -55,6 +58,7 @@ const EMPTY_USAGE_REQUIREMENTS: UsageFieldRequirement[] = [];
 const USAGE_WIDGET_REQUIREMENTS: Record<string, UsageFieldRequirement[]> = {
     'session-usage': [{ field: 'sessionUsage' }],
     'weekly-usage': [{ field: 'weeklyUsage' }],
+    'spend-limit-usage': [{ field: 'spendLimitUsage' }],
     ...Object.fromEntries(WEEKLY_MODEL_USAGE_BUCKETS.map(bucket => [bucket.widgetType, [{ field: bucket.usageField }]])),
     'block-timer': [{ field: 'sessionResetAt', suppressFetchError: true }],
     'reset-timer': [{ field: 'sessionResetAt', suppressFetchError: true }],
@@ -194,7 +198,9 @@ export function extractUsageDataFromRateLimits(rateLimits: StatusJSON['rate_limi
         sessionUsage: rateLimits.five_hour?.used_percentage ?? undefined,
         sessionResetAt: epochSecondsToIsoString(rateLimits.five_hour?.resets_at),
         weeklyUsage: rateLimits.seven_day?.used_percentage ?? undefined,
-        weeklyResetAt: epochSecondsToIsoString(rateLimits.seven_day?.resets_at)
+        weeklyResetAt: epochSecondsToIsoString(rateLimits.seven_day?.resets_at),
+        spendLimitUsage: rateLimits.spend_limit?.used_percentage ?? undefined,
+        spendLimitResetAt: epochSecondsToIsoString(rateLimits.spend_limit?.resets_at)
         // Note: rate_limits does not include extra_usage data (extraUsageEnabled, etc.).
         // Those fields are only available via the API fetch path.
     };

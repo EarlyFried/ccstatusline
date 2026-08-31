@@ -42,6 +42,15 @@ const FABLE_USAGE_FIELDS = new Set<UsageDataField>([
     'fableResetAt'
 ]);
 
+// spend_limit is a native-only field reported by the statusline hook payload's
+// rate_limits (see extractUsageDataFromRateLimits in usage-prefetch.ts); the
+// /api/oauth/usage endpoint has no equivalent bucket, so a missing value can
+// never be resolved by refetching.
+const SPEND_LIMIT_USAGE_FIELDS = new Set<UsageDataField>([
+    'spendLimitUsage',
+    'spendLimitResetAt'
+]);
+
 // Maps each window reset field to the utilization field parsed from the same
 // API bucket. A null bucket (Enterprise accounts have no rate-limit windows,
 // #343) parses to utilization 0 with no resets_at, so once the utilization is
@@ -78,6 +87,8 @@ const CachedUsageDataSchema = z.object({
     weeklySonnetResetAt: z.string().nullable().optional(),
     weeklyOpusUsage: z.number().nullable().optional(),
     weeklyOpusResetAt: z.string().nullable().optional(),
+    spendLimitUsage: z.number().nullable().optional(),
+    spendLimitResetAt: z.string().nullable().optional(),
     fableUsage: z.number().nullable().optional(),
     fableResetAt: z.string().nullable().optional(),
     extraUsageEnabled: z.boolean().nullable().optional(),
@@ -202,6 +213,8 @@ function parseCachedUsageData(rawJson: string): UsageData | null {
         weeklySonnetResetAt: parsed.weeklySonnetResetAt ?? undefined,
         weeklyOpusUsage: parsed.weeklyOpusUsage ?? undefined,
         weeklyOpusResetAt: parsed.weeklyOpusResetAt ?? undefined,
+        spendLimitUsage: parsed.spendLimitUsage ?? undefined,
+        spendLimitResetAt: parsed.spendLimitResetAt ?? undefined,
         fableUsage: parsed.fableUsage ?? undefined,
         fableResetAt: parsed.fableResetAt ?? undefined,
         extraUsageEnabled: parsed.extraUsageEnabled ?? undefined,
@@ -343,10 +356,12 @@ function hasRequiredUsageField(data: UsageData, field: UsageDataField): boolean 
         return true;
     }
 
-    // Once the API has reported the core usage state, a missing fable window is
-    // conclusive: legacy accounts and non-Fable plans never report a fable
-    // limit, so refetching cannot produce it.
-    return (data.sessionUsage !== undefined || data.weeklyUsage !== undefined) && FABLE_USAGE_FIELDS.has(field);
+    // Once the API has reported the core usage state, a missing fable window or
+    // spend-limit field is conclusive: fable windows are absent for non-Fable
+    // plans, and spend_limit has no API bucket at all (see
+    // SPEND_LIMIT_USAGE_FIELDS above), so refetching cannot produce either.
+    return (data.sessionUsage !== undefined || data.weeklyUsage !== undefined)
+        && (FABLE_USAGE_FIELDS.has(field) || SPEND_LIMIT_USAGE_FIELDS.has(field));
 }
 
 function hasRequiredUsageFields(data: UsageData, requiredFields: readonly UsageDataField[] = []): boolean {

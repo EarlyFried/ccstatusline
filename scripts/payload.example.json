@@ -45,6 +45,10 @@
     "seven_day": {
       "used_percentage": 15,
       "resets_at": 1774540000
+    },
+    "spend_limit": {
+      "used_percentage": 5,
+      "resets_at": 1788134400
     }
   },
   "vim": {

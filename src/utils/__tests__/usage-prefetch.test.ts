@@ -126,6 +126,33 @@ describe('usage prefetch', () => {
         expect(mockFetchUsageData.mock.calls.length).toBe(1);
     });
 
+    it('uses rate_limits spend_limit from StatusJSON instead of fetching from API', async () => {
+        mockFetchUsageData.mockResolvedValue({ spendLimitUsage: 99 });
+
+        const lines = makeLines(
+            [{ id: '1', type: 'spend-limit-usage' }]
+        );
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { spend_limit: { used_percentage: 5, resets_at: 1788134400 } } });
+
+        expect(usageData?.spendLimitUsage).toBe(5);
+        expect(usageData?.spendLimitResetAt).toBe(epochToIso(1788134400));
+        expect(mockFetchUsageData.mock.calls.length).toBe(0);
+    });
+
+    it('falls back to API fetch when spend-limit-usage widget is present but rate_limits lacks spend_limit', async () => {
+        mockFetchUsageData.mockResolvedValue({ spendLimitUsage: 5 });
+
+        const lines = makeLines(
+            [{ id: '1', type: 'spend-limit-usage' }]
+        );
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { five_hour: { used_percentage: 42, resets_at: 1774020000 } } });
+
+        expect(usageData?.spendLimitUsage).toBe(5);
+        expect(mockFetchUsageData.mock.calls.length).toBe(1);
+    });
+
     it('merges reset-only rate_limits data with API usage data', async () => {
         mockFetchUsageData.mockResolvedValue({ sessionUsage: 42 });
 
@@ -646,6 +673,40 @@ describe('extractUsageDataFromRateLimits', () => {
 
         expect(result?.sessionUsage).toBeUndefined();
         expect(result?.sessionResetAt).toBe(epochToIso(1774020000));
+    });
+
+    it('extracts spend_limit usage and reset from rate_limits', () => {
+        const result = extractUsageDataFromRateLimits({ spend_limit: { used_percentage: 5, resets_at: 1788134400 } });
+
+        expect(result).not.toBeNull();
+        expect(result?.spendLimitUsage).toBe(5);
+        expect(result?.spendLimitResetAt).toBe(epochToIso(1788134400));
+    });
+
+    it('extracts partial data when only spend_limit is present', () => {
+        const result = extractUsageDataFromRateLimits({ spend_limit: { used_percentage: 5, resets_at: 1788134400 } });
+
+        expect(result).not.toBeNull();
+        expect(result?.sessionUsage).toBeUndefined();
+        expect(result?.weeklyUsage).toBeUndefined();
+        expect(result?.spendLimitUsage).toBe(5);
+    });
+
+    it('leaves spendLimitUsage undefined when spend_limit bucket is absent', () => {
+        const result = extractUsageDataFromRateLimits({
+            five_hour: { used_percentage: 42, resets_at: 1774020000 },
+            seven_day: { used_percentage: 15, resets_at: 1774540000 }
+        });
+
+        expect(result?.spendLimitUsage).toBeUndefined();
+        expect(result?.spendLimitResetAt).toBeUndefined();
+    });
+
+    it('treats null spend_limit used_percentage as missing while keeping reset data', () => {
+        const result = extractUsageDataFromRateLimits({ spend_limit: { used_percentage: null, resets_at: 1788134400 } });
+
+        expect(result?.spendLimitUsage).toBeUndefined();
+        expect(result?.spendLimitResetAt).toBe(epochToIso(1788134400));
     });
 
     it('extracts per-model weekly buckets when present', () => {
