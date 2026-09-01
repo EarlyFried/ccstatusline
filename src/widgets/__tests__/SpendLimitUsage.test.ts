@@ -33,17 +33,17 @@ describe('SpendLimitUsageWidget', () => {
         const widget = new SpendLimitUsageWidget();
         const context: RenderContext = { usageData: { spendLimitUsage: 5 } };
 
-        expect(render(widget, { id: 'spend', type: 'spend-limit-usage' }, context)).toBe('Limit: 5.0%');
+        expect(render(widget, { id: 'spend', type: 'spend-limit-usage' }, context)).toBe('Limit: 5%');
         expect(render(widget, {
             id: 'spend',
             rawValue: true,
             type: 'spend-limit-usage'
-        }, context)).toBe('5.0%');
+        }, context)).toBe('5%');
         expect(render(widget, {
             id: 'spend',
             metadata: { display: 'progress-short' },
             type: 'spend-limit-usage'
-        }, context)).toBe('Limit: [█░░░░░░░░░░░░░░░] 5.0%');
+        }, context)).toBe('Limit: [█░░░░░░░░░░░░░░░] 5%');
         expect(render(widget, {
             id: 'spend',
             metadata: { display: 'slider-only' },
@@ -57,9 +57,9 @@ describe('SpendLimitUsageWidget', () => {
         expect(render(widget, { id: 'spend', type: 'spend-limit-usage' }, {
             usageData: {
                 error: 'timeout',
-                spendLimitUsage: 2.6
+                spendLimitUsage: 3
             }
-        })).toBe('Limit: 2.6%');
+        })).toBe('Limit: 3%');
     });
 
     it('shows usage error text when data is missing', () => {
@@ -99,7 +99,7 @@ describe('SpendLimitUsageWidget', () => {
             id: 'spend',
             metadata: { display: 'progress-short', invert: 'true' },
             type: 'spend-limit-usage'
-        }, { usageData: { spendLimitUsage: 25 } })).toBe('Limit: [████████████░░░░] 75.0%');
+        }, { usageData: { spendLimitUsage: 25 } })).toBe('Limit: [████████████░░░░] 75%');
     });
 
     it('inverts plain text and preview rendering', () => {
@@ -110,9 +110,9 @@ describe('SpendLimitUsageWidget', () => {
             type: 'spend-limit-usage'
         };
 
-        expect(render(widget, item, { usageData: { spendLimitUsage: 25 } })).toBe('Limit: 75.0%');
-        expect(render(widget, { ...item, rawValue: true }, { usageData: { spendLimitUsage: 25 } })).toBe('75.0%');
-        expect(render(widget, item, { isPreview: true })).toBe('Limit: 95.0%');
+        expect(render(widget, item, { usageData: { spendLimitUsage: 25 } })).toBe('Limit: 75%');
+        expect(render(widget, { ...item, rawValue: true }, { usageData: { spendLimitUsage: 25 } })).toBe('75%');
+        expect(render(widget, item, { isPreview: true })).toBe('Limit: 95%');
     });
 
     it('cycles display modes in the expected order', () => {

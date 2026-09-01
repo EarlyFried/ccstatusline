@@ -61,16 +61,16 @@ export class SpendLimitUsageWidget implements Widget {
             if (isUsageProgressMode(displayMode)) {
                 const width = getUsageProgressBarWidth(displayMode);
                 const progressBar = makeTimerProgressBar(renderedPercent, width);
-                return formatRawOrLabeledValue(item, LABEL, `[${progressBar}] ${renderedPercent.toFixed(1)}%`);
+                return formatRawOrLabeledValue(item, LABEL, `[${progressBar}] ${renderedPercent.toFixed(0)}%`);
             }
 
             if (isUsageSliderMode(displayMode)) {
                 const slider = makeSliderBar(renderedPercent);
-                const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(1)}%` : slider;
+                const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(0)}%` : slider;
                 return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
             }
 
-            return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(1)}%`);
+            return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(0)}%`);
         }
 
         const data = context.usageData ?? {};
@@ -87,16 +87,16 @@ export class SpendLimitUsageWidget implements Widget {
         if (isUsageProgressMode(displayMode)) {
             const width = getUsageProgressBarWidth(displayMode);
             const progressBar = makeTimerProgressBar(renderedPercent, width);
-            return formatRawOrLabeledValue(item, LABEL, `[${progressBar}] ${renderedPercent.toFixed(1)}%`);
+            return formatRawOrLabeledValue(item, LABEL, `[${progressBar}] ${renderedPercent.toFixed(0)}%`);
         }
 
         if (isUsageSliderMode(displayMode)) {
             const slider = makeSliderBar(renderedPercent);
-            const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(1)}%` : slider;
+            const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(0)}%` : slider;
             return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
         }
 
-        return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(1)}%`);
+        return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(0)}%`);
     }
 
     getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
