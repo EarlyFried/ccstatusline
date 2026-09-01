@@ -23,7 +23,7 @@ import {
     toggleUsageInverted
 } from './shared/usage-display';
 
-const LABEL = 'Spend Limit: ';
+const LABEL = 'Limit: ';
 
 export class SpendLimitUsageWidget implements Widget {
     getDefaultColor(): string { return 'yellow'; }
@@ -75,12 +75,13 @@ export class SpendLimitUsageWidget implements Widget {
 
         const data = context.usageData ?? {};
         if (data.spendLimitUsage === undefined) {
-            if (data.error)
+            if (data.error && data.error !== 'no-credentials')
                 return getUsageErrorMessage(data.error);
-            return null;
+            if (!data.error)
+                return null;
         }
 
-        const percent = Math.max(0, Math.min(100, data.spendLimitUsage));
+        const percent = Math.max(0, Math.min(100, data.spendLimitUsage ?? 0));
         const renderedPercent = inverted ? 100 - percent : percent;
 
         if (isUsageProgressMode(displayMode)) {
