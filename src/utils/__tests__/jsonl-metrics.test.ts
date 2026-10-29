@@ -69,12 +69,14 @@ function makeUsageLine(params: {
     isSidechain?: boolean;
     isApiErrorMessage?: boolean;
     stopReason?: string | null;
+    messageId?: string;
 }): string {
     return JSON.stringify({
         timestamp: params.timestamp,
         isSidechain: params.isSidechain,
         isApiErrorMessage: params.isApiErrorMessage,
         message: {
+            id: params.messageId,
             stop_reason: params.stopReason,
             usage: {
                 input_tokens: params.input,
@@ -594,6 +596,64 @@ describe('jsonl transcript metrics', () => {
             totalTokens: 235100,
             contextLength: 0
         });
+    });
+
+    it('counts an API response once when its content blocks are split across rows', async () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-jsonl-metrics-'));
+        tempRoots.push(root);
+        const transcriptPath = path.join(root, 'split-blocks.jsonl');
+
+        // One API call written as three rows (thinking, text, tool_use) sharing
+        // the same message.id and usage, each with a finalized stop_reason.
+        const splitCall = ['10:00:00', '10:00:01', '10:00:02'].map(time => makeUsageLine({
+            timestamp: `2026-01-01T${time}.000Z`,
+            messageId: 'msg_split',
+            input: 10,
+            output: 50,
+            cacheRead: 1000,
+            cacheCreate: 200,
+            stopReason: 'tool_use'
+        }));
+        const secondCall = makeUsageLine({
+            timestamp: '2026-01-01T10:01:00.000Z',
+            messageId: 'msg_other',
+            input: 5,
+            output: 20,
+            cacheRead: 1500,
+            cacheCreate: 0,
+            stopReason: 'end_turn'
+        });
+
+        fs.writeFileSync(transcriptPath, [...splitCall, secondCall].join('\n'));
+
+        const metrics = await getTokenMetrics(transcriptPath);
+
+        expect(metrics).toEqual({
+            inputTokens: 15,
+            outputTokens: 70,
+            cachedTokens: 2700,
+            cacheReadTokens: 2500,
+            cacheCreationTokens: 200,
+            totalTokens: 2785,
+            contextLength: 1505
+        });
+    });
+
+    it('keeps the final usage when later rows of the same response report more output tokens', async () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-jsonl-metrics-'));
+        tempRoots.push(root);
+        const transcriptPath = path.join(root, 'split-blocks-growing.jsonl');
+
+        fs.writeFileSync(transcriptPath, [
+            makeUsageLine({ timestamp: '2026-01-01T10:00:00.000Z', messageId: 'msg_a', input: 10, output: 5, cacheRead: 100, stopReason: 'tool_use' }),
+            makeUsageLine({ timestamp: '2026-01-01T10:00:01.000Z', messageId: 'msg_a', input: 10, output: 40, cacheRead: 100, stopReason: 'tool_use' })
+        ].join('\n'));
+
+        const metrics = await getTokenMetrics(transcriptPath);
+
+        expect(metrics.inputTokens).toBe(10);
+        expect(metrics.outputTokens).toBe(40);
+        expect(metrics.cacheReadTokens).toBe(100);
     });
 
     it('returns zeroed token metrics when file is missing', async () => {
