@@ -83,6 +83,7 @@ interface CollectedSpeedMetrics {
 
 interface TokenMetricEntry {
     usage: UsageTokens;
+    messageId: string | undefined;
     stopReason: string | null | undefined;
     timestampMs: number | null;
     isMainChain: boolean;
@@ -93,6 +94,7 @@ interface TokenMetricAccumulator {
     outputTokens: number;
     cacheReadTokens: number;
     cacheCreationTokens: number;
+    countedUsageByMessageId: Map<string, UsageTokens>;
     mostRecentMainChainUsage: UsageTokens | null;
     mostRecentTimestampMs: number | null;
     mostRecentPostCompactionUsage: UsageTokens | null;
@@ -126,6 +128,7 @@ function createTokenMetricAccumulator(): TokenMetricAccumulator {
         outputTokens: 0,
         cacheReadTokens: 0,
         cacheCreationTokens: 0,
+        countedUsageByMessageId: new Map(),
         mostRecentMainChainUsage: null,
         mostRecentTimestampMs: null,
         mostRecentPostCompactionUsage: null,
@@ -144,6 +147,22 @@ function accumulateTokenMetricEntry(
     includePostCompactionUsage: boolean
 ): void {
     const { usage } = entry;
+
+    // Claude Code writes one JSONL row per content block (thinking, text, each
+    // tool_use) of a single API response. Every row repeats the same message.id and
+    // usage, so replace what an earlier row of the same message contributed instead
+    // of adding it again. Rows without an id are always counted.
+    if (entry.messageId) {
+        const previousUsage = accumulator.countedUsageByMessageId.get(entry.messageId);
+        if (previousUsage) {
+            accumulator.inputTokens -= previousUsage.input;
+            accumulator.outputTokens -= previousUsage.output;
+            accumulator.cacheReadTokens -= previousUsage.read;
+            accumulator.cacheCreationTokens -= previousUsage.creation;
+        }
+        accumulator.countedUsageByMessageId.set(entry.messageId, usage);
+    }
+
     accumulator.inputTokens += usage.input;
     accumulator.outputTokens += usage.output;
     accumulator.cacheReadTokens += usage.read;
@@ -190,6 +209,7 @@ function collectTokenMetricRecord(state: TokenMetricState, data: TranscriptLine 
     if (usage) {
         const entry: TokenMetricEntry = {
             usage: parseUsageTokens(usage),
+            messageId: message.id,
             stopReason: message.stop_reason,
             timestampMs,
             isMainChain: data?.isSidechain !== true && !data?.isApiErrorMessage
